@@ -1,0 +1,8 @@
+{
+    "type": "PowerShell",
+    "request": "launch",
+    "name": "Launch Program",
+    "program": "${workspaceRoot}/app.js",
+    "cwd": "${workspaceRoot}",
+    "args":
+}
