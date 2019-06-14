@@ -66,7 +66,7 @@ function Main($readFile1, $readFile2, $targetCmd)
 
     $prefix = $targetCmd -replace " ", "_"
     $prefix += "_"
- 
+
     # $readFile1 の "show ip route"の実行結果部分を取得する
     $route1 = get_show_command $readFile1 $targetCmd
     $result_readFile1 = setResultFileName $readFile1 $prefix  ".txt"
@@ -92,6 +92,11 @@ function Main($readFile1, $readFile2, $targetCmd)
 ##----------------------------------------------------------------------------##
 function load_ini_file($fileName_INI)
 {
+    if (-Not(Test-Path $fileName_INI)) {
+        Write-Host $fileName_INI" がありません。"
+        return $NULL
+    }
+
     $f = (Get-Content $fileName_INI) -as [string[]]
 
     foreach ($currentLine in $f) {
@@ -99,8 +104,8 @@ function load_ini_file($fileName_INI)
             continue
         }
 
-        $currentLine = $currentLine -replace "#*", ""
-        $currentLine = $currentLine -replace "//*", ""
+        $currentLine = $currentLine -replace "#.*$", ""
+        $currentLine = $currentLine -replace "//.*$", ""
         $currentLine = $currentLine -replace " = ", "="
         $currentLine = $currentLine -replace " =", "="
         $currentLine = $currentLine -replace "= ", "="
@@ -108,7 +113,6 @@ function load_ini_file($fileName_INI)
         $pos = $currentLine.IndexOf("path_diff=")
 
         if ($pos -ge 0) {
-
             $cmd, $program_diff = $currentLine -split "="
 
             if ($program_diff -eq "") {
@@ -125,6 +129,9 @@ function load_ini_file($fileName_INI)
             return $program_diff
         }
     }
+
+    Write-Host "path_diff のエントリが見つかりませんでした。"
+    return $NULL
 }
 
 ##----------------------------------------------------------------------------##
@@ -248,7 +255,6 @@ function get_show_command($file, $cmd)
                 continue
             }
 
-
             $prompt = $currentLine.IndexOf("#")
 
             if ($prompt -gt 0) {
@@ -257,7 +263,7 @@ function get_show_command($file, $cmd)
             }
         }
     }
-    
+
     return $NULL
 }
 
