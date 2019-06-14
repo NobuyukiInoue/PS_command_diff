@@ -1,62 +1,130 @@
 ##----------------------------------------------------------------------------##
 ## 引数の指定（２つのファイルを指定可）
 ##----------------------------------------------------------------------------##
-param($arg1, $arg2)
-
-# diffツールの指定
-$program_diff = "D:\share\ツール群\df141\DF.exe"
-$show_cmd = "show ip route vrf"
+param($file1, $file2, $cmd)
 
 ##----------------------------------------------------------------------------##
 ## メイン処理
 ##----------------------------------------------------------------------------##
-function Main($file1, $file2)
+function Main($readFile1, $readFile2, $targetCmd)
 {
-    if (-Not($file1) -And -Not($file2)) {
+    $program_diff = load_ini_file ".\command_diff.ini"
+
+    if ($program_diff -eq $NULL) {
+        return
+    }
+
+    Write-Host "`$program_diff = "$program_diff
+
+    if (-Not($readFile1) -And -Not($readFile2)) {
         $files = SelectFile_Multi "比較したいファイルを選択してください。（CTRL+で２つ同時に選択可）"
         if ($files -eq $NULL) {
             return
         }
         if ($files.Count -eq 2) {
-            $file1 = $files[0]
-            $file2 = $files[1]
+            $readFile1 = $files[0]
+            $readFile2 = $files[1]
         }
         elseif ($files.Count -eq 1) {
-            $file1 = $files
+            $readFile1 = $files
         }
     }
 
-    if (-Not($file1)) {
-        $file1 = SelectFile "１つめのファイルを選択してください。"
-    }
-    if ($file1 -ne $NULL) {
-        Write-Host "`$file1 = "$file1
-#       Get-Content $file1
-    }
+    if (-Not($readFile1) -Or -Not(Test-Path $readFile1)) {
+        $readFile1 = SelectFile "１つめのファイルを選択してください。"
 
-    if (-Not($file2)) {
-        $file2 = SelectFile "２つめのファイルを選択してください。"
+        if ($readFile1 -eq $NULL) {
+            return
+        }
     }
-    if ($file2 -ne $NULL) {
-        Write-Host "`$file2 = "$file2
-#       Get-Content $file2
+    if ($readFile1 -ne $NULL) {
+        Write-Host "`$readFile1 = "$readFile1
+#       Get-Content $readFile1
     }
 
-    # $file1 の "show ip route"の実行結果部分を取得する
-    $route1 = get_show_command $file1 $show_cmd
-    $result_file1 = setResultFileName $file1 "route_"  ".txt"
+    if (-Not($readFile2) -Or -Not(Test-Path $readFile2)) {
+        $readFile2 = SelectFile "２つめのファイルを選択してください。"
 
-    Write-Output $route1 | Out-File $result_file1 -Encoding default
+        if ($readFile1 -eq $NULL) {
+            return
+        }
+    }
+    if ($readFile2 -ne $NULL) {
+        Write-Host "`$readFile2 = "$readFile2
+#       Get-Content $readFile2
+    }
 
-    # $file2 の "show ip route"の実行結果部分を取得する
-    $route2 = get_show_command $file2 $show_cmd
-    $result_file2 = setResultFileName $file2 "route_" ".txt"
+    if (-Not($targetCmd)) {
+        $targetCmd = set_Cmd
 
-    Write-Output $route2 | Out-File $result_file2 -Encoding default
+        if ($targetCmd -eq "") {
+            return
+        }
+    }
+
+    Write-Host "`$targetCmd = "$targetCmd
+
+    $prefix = $targetCmd -replace " ", "_"
+    $prefix += "_"
+ 
+    # $readFile1 の "show ip route"の実行結果部分を取得する
+    $route1 = get_show_command $readFile1 $targetCmd
+    $result_readFile1 = setResultFileName $readFile1 $prefix  ".txt"
+
+    Write-Output $route1 | Out-File $result_readFile1 -Encoding default
+
+    # $readFile2 の "show ip route"の実行結果部分を取得する
+    $route2 = get_show_command $readFile2 $targetCmd
+    $result_readFile2 = setResultFileName $readFile2 $prefix ".txt"
+
+    Write-Output $route2 | Out-File $result_readFile2 -Encoding default
+
+    $result_readFile1 = $result_readFile1 -replace "^\.\\", ""
+    $result_readFile2 = $result_readFile2 -replace "^\.\\", ""
 
     # diffコマンド起動
-    & $program_diff $result_file1 $result_file2
+    & $program_diff $result_readFile1 $result_readFile2
 
+}
+
+##----------------------------------------------------------------------------##
+## iniファイルの読み込み
+##----------------------------------------------------------------------------##
+function load_ini_file($fileName_INI)
+{
+    $f = (Get-Content $fileName_INI) -as [string[]]
+
+    foreach ($currentLine in $f) {
+        if ($currentLine.Length -eq 0) {
+            continue
+        }
+
+        $currentLine = $currentLine -replace "#*", ""
+        $currentLine = $currentLine -replace "//*", ""
+        $currentLine = $currentLine -replace " = ", "="
+        $currentLine = $currentLine -replace " =", "="
+        $currentLine = $currentLine -replace "= ", "="
+
+        $pos = $currentLine.IndexOf("path_diff=")
+
+        if ($pos -ge 0) {
+
+            $cmd, $program_diff = $currentLine -split "="
+
+            if ($program_diff -eq "") {
+                return $NULL
+            }
+
+            $program_diff = $program_diff -replace "`"", ""
+
+            if (-Not(Test-Path $program_diff)) {
+                Write-Host $program_diff" が見つかりません。"
+                return $NULL
+            }
+
+            return $program_diff
+        }
+    }
 }
 
 ##----------------------------------------------------------------------------##
@@ -103,6 +171,21 @@ function SelectFile_Multi($message)
         return $NULL
     }
 }
+
+##----------------------------------------------------------------------------##
+## 正常性ログから検索するコマンドをセットする
+##----------------------------------------------------------------------------##
+function set_cmd()
+{
+    # アセンブリの読み込み
+    [void][System.Reflection.Assembly]::Load("Microsoft.VisualBasic, Version=8.0.0.0, Culture=Neutral, PublicKeyToken=b03f5f7f11d50a3a")
+
+    # インプットボックスの表示
+    $INPUT = [Microsoft.VisualBasic.Interaction]::InputBox("比較したいコマンドを入力してください。", "検索するコマンドの指定")
+
+    return $INPUT
+}
+
 
 ##----------------------------------------------------------------------------##
 ## 正常性ログから $cmd の実行結果部分を取得する
@@ -241,4 +324,4 @@ function setResultFileName($fileName, $pre_str, $post_str)
 ## Main呼び出し
 ##----------------------------------------------------------------------------##
 
-Main $arg1 $arg2
+Main $file1 $file2 $cmd
