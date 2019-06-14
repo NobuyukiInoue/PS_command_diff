@@ -200,24 +200,22 @@ function set_cmd()
 function get_show_command($file, $cmd)
 {
     $f = (Get-Content $file) -as [string[]]
-    $read_route = $FALSE
+    $cmd_read = $FALSE
     $route_count = 0
+
+    $prompt = @()
+    $prompt += "#"
+    $prompt += ">"
 
     foreach ($currentLine in $f) {
         if ($currentLine.Length -eq 0) {
             continue
         }
 
-        if ($read_route -eq $FALSE) {
+        if ($cmd_read -eq $FALSE) {
             ##---------------------------------------------##
             ## 対象コマンドを検索する
             ##---------------------------------------------##
-            $prompt = $currentLine.IndexOf("#")
-
-            if ($prompt -eq -1) {
-                continue
-            }
-
             $show_cmd_start = $currentLine.IndexOf($cmd)
 
             if ($show_cmd_start -eq -1) {
@@ -231,7 +229,27 @@ function get_show_command($file, $cmd)
             }
             #>
 
-            $read_route = $TRUE
+            ##---------------------------------------------##
+            ## プロンプトを検出する
+            ##---------------------------------------------##
+            $current_prompt = ""
+            $pos_min = 255
+            foreach ($pt in $prompt) {
+                $pos_prompt = $currentLine.IndexOf($pt)
+
+                if ($pos_prompt -ge 0) {
+                    if ($pos_prompt -lt $pos_min) {
+                        $pos_min = $pos_prompt
+                        $current_prompt = $currentLine.Substring(0, $pos_prompt + 1)
+                    }
+                }
+            }
+
+            if ($current_prompt -eq "") {
+                continue
+            }
+
+            $cmd_read = $TRUE
             $ip_route += $currentLine + "`r`n"
             continue
         }
@@ -255,9 +273,9 @@ function get_show_command($file, $cmd)
                 continue
             }
 
-            $prompt = $currentLine.IndexOf("#")
+            $pos_prompt = $currentLine.IndexOf($current_prompt)
 
-            if ($prompt -gt 0) {
+            if ($pos_prompt -ge 0) {
                 # 次のプロンプトが見つかったら検索を終える
                 return $ip_route
             }
