@@ -8,6 +8,7 @@ param($file1, $file2, $cmd)
 ##----------------------------------------------------------------------------##
 function Main($readFile1, $readFile2, $targetCmd)
 {
+    # INIファイルの読み込みとdiffツールのセット
     $program_diff = load_ini_file ".\command_diff.ini"
 
     if ($program_diff -eq $NULL) {
@@ -55,6 +56,7 @@ function Main($readFile1, $readFile2, $targetCmd)
     }
 
     if (-Not($targetCmd)) {
+        # inputboxを表示して検索したいコマンドを受け取る
         $targetCmd = set_Cmd
 
         if ($targetCmd -eq "") {
@@ -64,21 +66,23 @@ function Main($readFile1, $readFile2, $targetCmd)
 
     Write-Host "`$targetCmd = "$targetCmd
 
+    # 出力するファイルの名前に付加する接頭文字列のセット
     $prefix = $targetCmd -replace " ", "_"
     $prefix += "_"
 
-    # $readFile1 の "show ip route"の実行結果部分を取得する
+    # $readFile1 の[検索対象コマンド]の実行結果部分を取得する
     $route1 = get_show_command $readFile1 $targetCmd
     $result_readFile1 = setResultFileName $readFile1 $prefix  ".txt"
 
     Write-Output $route1 | Out-File $result_readFile1 -Encoding default
 
-    # $readFile2 の "show ip route"の実行結果部分を取得する
+    # $readFile2 の[検索対象コマンド]の実行結果部分を取得する
     $route2 = get_show_command $readFile2 $targetCmd
     $result_readFile2 = setResultFileName $readFile2 $prefix ".txt"
 
     Write-Output $route2 | Out-File $result_readFile2 -Encoding default
 
+    # 行頭の"./"を取り除く
     $result_readFile1 = $result_readFile1 -replace "^\.\\", ""
     $result_readFile2 = $result_readFile2 -replace "^\.\\", ""
 
@@ -147,7 +151,7 @@ function SelectFile($message)
     $dialog.Title = $message
 
     # ダイアログを表示
-    if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){
+    if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
        return $dialog.FileName
     }
     else {
@@ -170,7 +174,7 @@ function SelectFile_Multi($message)
     $dialog.Multiselect = $true
 
     # ダイアログを表示
-    if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){
+    if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         # 複数選択を許可している時は $dialog.FileNames を利用する
        return $dialog.FileNames
     }
