@@ -1,5 +1,8 @@
 ##----------------------------------------------------------------------------##
-## 引数の指定（２つのファイルを指定可）
+## 引数の指定
+## $file1 ... １つめのファイル
+## $file2 ... ２つめのファイル
+## $cmd   ... diffで比較したい抽出対象コマンド
 ##----------------------------------------------------------------------------##
 param($file1, $file2, $cmd)
 
@@ -11,7 +14,7 @@ function Main($readFile1, $readFile2, $targetCmd)
     # INIファイルの読み込みとdiffツールのセット
     $program_diff = load_ini_file ".\command_diff.ini"
 
-    if ($program_diff -eq $NULL) {
+    if ($NULL -eq $program_diff) {
         return
     }
 
@@ -19,7 +22,7 @@ function Main($readFile1, $readFile2, $targetCmd)
 
     if (-Not($readFile1) -And -Not($readFile2)) {
         $files = SelectFile_Multi "比較したいファイルを選択してください。（CTRL+で２つ同時に選択可）"
-        if ($files -eq $NULL) {
+        if ($NULL -eq $files) {
             return
         }
         if ($files.Count -eq 2) {
@@ -34,11 +37,11 @@ function Main($readFile1, $readFile2, $targetCmd)
     if (-Not($readFile1) -Or -Not(Test-Path $readFile1)) {
         $readFile1 = SelectFile "１つめのファイルを選択してください。"
 
-        if ($readFile1 -eq $NULL) {
+        if ($NULL -eq $readFile1) {
             return
         }
     }
-    if ($readFile1 -ne $NULL) {
+    if ($NULL -ne $readFile1) {
         Write-Host "`$readFile1 = "$readFile1
 #       Get-Content $readFile1
     }
@@ -46,11 +49,11 @@ function Main($readFile1, $readFile2, $targetCmd)
     if (-Not($readFile2) -Or -Not(Test-Path $readFile2)) {
         $readFile2 = SelectFile "２つめのファイルを選択してください。"
 
-        if ($readFile1 -eq $NULL) {
+        if ($NULL -eq $readFile1) {
             return
         }
     }
-    if ($readFile2 -ne $NULL) {
+    if ($NULL -ne $readFile2) {
         Write-Host "`$readFile2 = "$readFile2
 #       Get-Content $readFile2
     }
