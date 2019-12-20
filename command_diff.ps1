@@ -3,14 +3,25 @@
 ## $file1 ... １つめのファイル
 ## $file2 ... ２つめのファイル
 ## $cmd   ... diffで比較したい抽出対象コマンド
+## $match ... コマンド完全一致（TRUE)／コマンド部分一致（FALSE)の指定
 ##----------------------------------------------------------------------------##
-param($file1, $file2, $cmd)
+param($file1, $file2, $cmd, $match)
 
 ##----------------------------------------------------------------------------##
 ## メイン処理
 ##----------------------------------------------------------------------------##
-function Main($readFile1, $readFile2, $targetCmd)
+function Main($readFile1, $readFile2, $targetCmd, $match)
 {
+    $match_mode = $FALSE
+
+    # 完全一致／部分一致の選択
+    if ($match) {
+        $upper_match = $match.ToUpper()
+        if ($upper_match -eq "TRUE") {
+            $match_mode = $TRUE
+        }
+    }
+
     # INIファイルの読み込みとdiffツールのセット
     $program_diff = load_ini_file ".\command_diff.ini"
 
@@ -60,7 +71,7 @@ function Main($readFile1, $readFile2, $targetCmd)
 
     if (-Not($targetCmd)) {
         # inputboxを表示して検索したいコマンドを受け取る
-        $targetCmd = set_Cmd
+        $targetCmd = set_Cmd $match_mode
 
         if ($targetCmd -eq "") {
             return
@@ -74,13 +85,13 @@ function Main($readFile1, $readFile2, $targetCmd)
     $prefix += "_"
 
     # $readFile1 の[検索対象コマンド]の実行結果部分を取得する
-    $route1 = get_show_command $readFile1 $targetCmd
+    $route1 = get_show_command $readFile1 $targetCmd $match_mode
     $result_readFile1 = setResultFileName $readFile1 $prefix  ".txt"
 
     Write-Output $route1 | Out-File $result_readFile1 -Encoding default
 
     # $readFile2 の[検索対象コマンド]の実行結果部分を取得する
-    $route2 = get_show_command $readFile2 $targetCmd
+    $route2 = get_show_command $readFile2 $targetCmd $match_mode
     $result_readFile2 = setResultFileName $readFile2 $prefix ".txt"
 
     Write-Output $route2 | Out-File $result_readFile2 -Encoding default
@@ -189,13 +200,18 @@ function SelectFile_Multi($message)
 ##----------------------------------------------------------------------------##
 ## 正常性ログから検索するコマンドをセットする
 ##----------------------------------------------------------------------------##
-function set_cmd()
+function set_cmd($match_mode)
 {
     # アセンブリの読み込み
     [void][System.Reflection.Assembly]::Load("Microsoft.VisualBasic, Version=8.0.0.0, Culture=Neutral, PublicKeyToken=b03f5f7f11d50a3a")
 
     # インプットボックスの表示
-    $INPUT = [Microsoft.VisualBasic.Interaction]::InputBox("比較したいコマンドを入力してください。", "検索するコマンドの指定")
+    if ($match_mode) {
+        $INPUT = [Microsoft.VisualBasic.Interaction]::InputBox("比較したいコマンドを入力してください(完全一致)", "検索するコマンドの指定")
+    }
+    else {
+        $INPUT = [Microsoft.VisualBasic.Interaction]::InputBox("比較したいコマンドを入力してください(部分一致)", "検索するコマンドの指定")
+    }
 
     return $INPUT
 }
@@ -204,7 +220,7 @@ function set_cmd()
 ##----------------------------------------------------------------------------##
 ## 正常性ログから $cmd の実行結果部分を取得する
 ##----------------------------------------------------------------------------##
-function get_show_command($file, $cmd)
+function get_show_command($file, $cmd, $match_mode)
 {
     $f = (Get-Content $file) -as [string[]]
     $cmd_read = $FALSE
@@ -229,12 +245,12 @@ function get_show_command($file, $cmd)
                 continue
             }
 
-            # コマンドに他のオプションが含まれていた場合は、対象外とする
-            <#
-            if (($currentLine.Length - $cmd.Length) -ne $show_cmd_start) {
-                continue
+            if ($match_mode) {
+                # コマンドに他のオプションが含まれていた場合は、対象外とする
+                if (($currentLine.Length - $cmd.Length) -ne $show_cmd_start) {
+                    continue
+                }
             }
-            #>
 
             ##---------------------------------------------##
             ## プロンプトを検出する
@@ -265,13 +281,14 @@ function get_show_command($file, $cmd)
             ## 対象コマンドの開始行が見つかった場合
             ##---------------------------------------------##
             $workStr = $currentLine
-            <#
-            $workStr = $currentLine -replace ", *y*, ", ""
-            $workStr = $workStr -replace ", *w*, ", ""
-            $workStr = $workStr -replace ", *d*, ", ""
-            $workStr = $workStr -replace ", *h*, ", ""
-            #>
-            $workStr = $workStr -replace "..:..:..", "__:__:__"
+
+            $workStr = $workStr -replace ", ...d..h, ", ", __:__:__, "
+            $workStr = $workStr -replace ", ...d.h, ", ", __:__:__, "
+            $workStr = $workStr -replace ", ..d..h, ", ", __:__:__, "
+            $workStr = $workStr -replace ", ..d.h, ", ", __:__:__, "
+            $workStr = $workStr -replace ", .d..h, ", ", __:__:__, "
+            $workStr = $workStr -replace ", .d.h, ", ", __:__:__, "
+            $workStr = $workStr -replace "..:..:..", ", __:__:__, "
             $ip_route += $workStr + "`r`n"
 
             $route_count++
@@ -355,4 +372,4 @@ function setResultFileName($fileName, $pre_str, $post_str)
 ## Main呼び出し
 ##----------------------------------------------------------------------------##
 
-Main $file1 $file2 $cmd
+Main $file1 $file2 $cmd $match
